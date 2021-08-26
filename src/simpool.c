@@ -12,77 +12,88 @@ simpool_t * create_simpool()
     return pool;
 }
 
+// called by malloc_simpool
+static uint8_t
+malloc_check_node(simpool_t * pool, uint64_t size,
+                  simpool_node_t ** succeed, simmem_t ** nmem)
+{
+    uint8_t is_inherited = 0x00;
+
+    // Search for succeed.
+    simpool_node_t * cur = pool->root;
+    for (;;) {
+        if (!cur) break;
+        if (cur->mem.memsiz >= size) {
+            *succeed = cur;
+            break;
+        }
+        cur = cur->next;
+    }
+
+    // Check whether there is a proper memory block or not.
+    for (;;) {
+        if (!cur) break;
+        if (cur->mem.memsiz >= size && cur->mem.status == 0) {
+            cur->mem.status = 1;
+            bzero(cur->mem.ptr, cur->mem.memsiz);
+
+            *nmem = (simmem_t *) malloc(sizeof(simmem_t));
+            (*nmem)->ptr = cur->mem.ptr;
+
+            is_inherited = 0x01;
+            break;
+        }
+        cur = cur->next;
+    }
+
+    return is_inherited;
+}
+
+// called by malloc_simpool
+static void
+malloc_insert_node(simpool_t * pool, uint64_t size,
+                   simpool_node_t * succeed, simmem_t ** nmem)
+{
+    if (succeed) {
+        simpool_node_t * nnod = (simpool_node_t *) malloc(sizeof(simpool_node_t));
+        nnod->last = succeed->last;
+        nnod->next = succeed;
+        nnod->mem.memsiz = size;
+        nnod->mem.ptr = malloc(size);
+        nnod->mem.status = 1;
+        succeed->last = nnod;
+
+        *nmem = (simmem_t *) malloc(sizeof(simmem_t));
+        (*nmem)->ptr = nnod->mem.ptr;
+        (*nmem)->node = nnod;
+    } else {
+        // succeed == NULL -> no one is more than this size.
+        simpool_node_t * nnod = (simpool_node_t *) malloc(sizeof(simpool_node_t));
+        nnod->last = pool->back;
+        nnod->next = NULL;
+        nnod->mem.memsiz = size;
+        nnod->mem.ptr = malloc(size);
+        nnod->mem.status = 1;
+        pool->back->next = nnod;
+        pool->back = nnod;
+
+        *nmem = (simmem_t *) malloc(sizeof(simmem_t));
+        (*nmem)->ptr = nnod->mem.ptr;
+        (*nmem)->node = nnod;
+    }
+}
+
 simmem_t * malloc_simpool(simpool_t * pool, uint64_t size)
 {
-    simpool_node_t * succeed = 0;
-    uint8_t succeed_flag = 0;
-    // Check whether there is a proper memory block or not.
-    if (size <= pool->maxsiz) {
-        simpool_node_t * cur = pool->root;
-        while (cur != 0) {
-            if (cur->mem.memsiz >= size) {
-                if (!succeed_flag) {
-                    succeed = cur;
-                    succeed_flag = 1;
-                }
-                if (cur->mem.status == 0) {
-                    simmem_t * m = (simmem_t *) malloc(sizeof(simmem_t));
-                    cur->mem.status = 1;
-                    m->ptr = cur->mem.ptr;
-                    m->node = cur;
-                    return m;
-                } else {
-                    cur = cur->next;
-                    continue;
-                }
-            } else {
-                cur = cur->next;
-                continue;
-            }
-        }
-    }
-
-    // If no proper memory block, then create a new memory block.
-    simpool_node_t * newnod = (simpool_node_t *) malloc(sizeof(simpool_node_t));
-    if (!succeed_flag) {
-        simpool_node_t * cur = pool->root;
-        while (cur != 0) {
-            if (cur->mem.memsiz >= size) {
-                succeed = cur;
-                succeed_flag = 1;
-                break;
-            } else {
-                cur = cur->next;
-                continue;
-            }
-        }
-        if (!succeed_flag) {
-            succeed = 0;
-            succeed_flag = 1;
-        }
-    }
-
-    newnod->mem.memsiz = size;
-    newnod->mem.ptr = malloc(size);
-    newnod->mem.status = 1;
-    if (succeed) {
-        newnod->last = succeed->last;
-        newnod->next = succeed;
-        succeed->last = newnod;
+    simpool_node_t * succeed = NULL;
+    simmem_t * nmem = NULL;
+    uint8_t is_inherited = malloc_check_node(pool, size, &succeed, &nmem);
+    if (is_inherited) {
+        return nmem;
     } else {
-        newnod->last = pool->back;
-        newnod->next = 0;
-        pool->back->next = newnod;
-        pool->back = pool->back->next;
+        malloc_insert_node(pool, size, succeed, &nmem);
+        return nmem;
     }
-
-    simmem_t * m = (simmem_t *) malloc(sizeof(simmem_t));
-    m->ptr = newnod->mem.ptr;
-    m->node = newnod;
-
-    if (size > pool->maxsiz)
-        pool->maxsiz = size;
-    return m;
 }
 
 void free_simpool(simmem_t * mem)

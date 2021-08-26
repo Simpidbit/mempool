@@ -5,6 +5,7 @@
 
 // private
 // look at simpool_node_t
+// for node
 typedef struct {
     uint64_t memsiz;
     void * ptr;
@@ -29,6 +30,7 @@ typedef struct {
 
 // public
 // heap - free by free_simpool()
+// for user
 typedef struct {
     void * ptr;
     simpool_node_t * node;
