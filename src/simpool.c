@@ -39,6 +39,7 @@ malloc_check_node(simpool_t * pool, uint64_t size,
 
             *nmem = (simmem_t *) malloc(sizeof(simmem_t));
             (*nmem)->ptr = cur->mem.ptr;
+            (*nmem)->node = cur;
 
             is_inherited = 0x01;
             break;
@@ -54,32 +55,23 @@ static void
 malloc_insert_node(simpool_t * pool, uint64_t size,
                    simpool_node_t * succeed, simmem_t ** nmem)
 {
+    simpool_node_t * nnod = (simpool_node_t *) malloc(sizeof(simpool_node_t));
+    nnod->mem.memsiz = size;
+    nnod->mem.ptr = malloc(size);
+    nnod->mem.status = 1;
+    *nmem = (simmem_t *) malloc(sizeof(simmem_t));
+    (*nmem)->ptr = nnod->mem.ptr;
+    (*nmem)->node = nnod;
     if (succeed) {
-        simpool_node_t * nnod = (simpool_node_t *) malloc(sizeof(simpool_node_t));
         nnod->last = succeed->last;
         nnod->next = succeed;
-        nnod->mem.memsiz = size;
-        nnod->mem.ptr = malloc(size);
-        nnod->mem.status = 1;
         succeed->last = nnod;
-
-        *nmem = (simmem_t *) malloc(sizeof(simmem_t));
-        (*nmem)->ptr = nnod->mem.ptr;
-        (*nmem)->node = nnod;
     } else {
         // succeed == NULL -> no one is more than this size.
-        simpool_node_t * nnod = (simpool_node_t *) malloc(sizeof(simpool_node_t));
         nnod->last = pool->back;
         nnod->next = NULL;
-        nnod->mem.memsiz = size;
-        nnod->mem.ptr = malloc(size);
-        nnod->mem.status = 1;
         pool->back->next = nnod;
         pool->back = nnod;
-
-        *nmem = (simmem_t *) malloc(sizeof(simmem_t));
-        (*nmem)->ptr = nnod->mem.ptr;
-        (*nmem)->node = nnod;
     }
 }
 

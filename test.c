@@ -3,6 +3,8 @@
 
 int main()
 {
+    printf("Hello\n");
+    /*
     simpool_t * pool = create_simpool();
 
     simmem_t * m1 = malloc_simpool(pool, 100);
@@ -17,5 +19,6 @@ int main()
     free_simpool(m4);
 
     terminate_simpool(pool);
+    */
     return 0;
 }
