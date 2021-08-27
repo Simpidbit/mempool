@@ -10,5 +10,6 @@ else
 fi
 
 cd ..
+mkdir -p ./build/lib
 mv ./src/libsimpool.* ./build/lib
 echo "Build OK"
