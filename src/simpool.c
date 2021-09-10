@@ -1,3 +1,7 @@
+// GNU GPL LICENSE
+/*
+Copyright(C) 2021, Simpidbit Isaiah. All rights left.
+*/
 #include <stdlib.h>
 #include <strings.h>
 #include "simpool.h"
